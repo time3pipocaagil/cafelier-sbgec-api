@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id        String @id @default(cuid())
+  firstName String @db.VarChar(64)
+  lastName  String @db.VarChar(128)
+}
+
+model EmployeeUser {
+  id        String                 @id @default(cuid())
+  userName  String                 @db.VarChar(16)
+  password  String                 @db.VarChar(128)
+  status    EmployeeUserStatusEnum
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+}
+
+enum EmployeeUserStatusEnum {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+model Products {
+  id    String @id @default(cuid())
+  name  String
+  brand String
+}
+
+model ProductBrands {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  since       DateTime
+  producer    Producer @relation(name: "ProducerToProductBrands", fields: [producerId], references: [id])
+  producerId  String
+}
+
+model Producer {
+  id            String          @id @default(cuid())
+  name          String          @db.VarChar(255)
+  socialReason  String
+  createdAt     String
+  updatedAt     String
+  productBrands ProductBrands[] @relation("ProducerToProductBrands")
+}
+
+model Suppliers {
+  id   String @id @default(cuid())
+  name String @db.VarChar()
+}
+
+model Inventory {
+  id         String   @id @default(cuid())
+  productId  String
+  supplierId String
+  sellerId   String
+  quantity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

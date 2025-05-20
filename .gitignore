@@ -1,0 +1,23 @@
+# Node.js
+node_modules/
+dist/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*
+
+# VS Code settings
+.vscode/
+
+# Optional OS/system files
+.DS_Store
+Thumbs.db
