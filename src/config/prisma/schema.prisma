@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Country {
+  id              String    @id @default(cuid(2))
+  productOriginal Product[] @relation("ProductToCountryOrigin")
+}
+
+model Employee {
+  id        String @id @default(cuid())
+  firstName String @db.VarChar(64)
+  lastName  String @db.VarChar(128)
+
+  employeeProductCreator Product[] @relation("ProductToEmployee")
+}
+
+model EmployeeUser {
+  id        String                 @id @default(cuid())
+  userName  String                 @db.VarChar(16)
+  password  String                 @db.VarChar(128)
+  status    EmployeeUserStatusEnum @default(INACTIVE)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+}
+
+enum EmployeeUserStatusEnum {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String    @db.VarChar(255)
+  description String    @db.VarChar(255)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String
+  updatedBy   String
+  Product     Product[] @relation("ProductToCategory")
+}
+
+model ProductBrand {
+  id          String          @id @default(cuid())
+  name        String          @db.VarChar(64)
+  description String          @db.VarChar(255)
+  founderYear DateTime
+  logoUri     String          @db.VarChar(524)
+  website     String          @db.VarChar(255)
+  status      BrandStatusEnum @default(ACTIVE)
+  producer    Producer        @relation(name: "ProducerToProductBrand", fields: [producerId], references: [id])
+  producerId  String
+  Product     Product[]       @relation("ProductToProductBrand")
+}
+
+enum BrandStatusEnum {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model Product {
+  id               String               @id @default(cuid())
+  name             String               @db.VarChar(255)
+  description      String               @db.VarChar(255)
+  productBrand     ProductBrand         @relation(name: "ProductToProductBrand", fields: [productBrandId], references: [id])
+  brandId          String
+  sku              String               @db.VarChar(255)
+  category         ProductCategory      @relation(name: "ProductToCategory", fields: [categoryId], references: [id])
+  categoryId       String
+  variety          ProductVariety[]     @relation("ProductVarietyToProduct")
+  processingMethod ProcessingMethodEnum
+  // harverstYear     DateTime inventario
+  batchNumber      String
+  countryOrigin    Country              @relation(name: "ProductToCountryOrigin", fields: [countryOriginId], references: [id])
+  countryOriginId  String
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  employeeCreator  Employee             @relation(name: "ProductToEmployee", fields: [createdBy], references: [id])
+  createdBy        String
+  updatedBy        String
+  productBrandId   String
+}
+
+model ProductVariety {
+  id                String                @id @default(cuid())
+  product           Product               @relation(name: "ProductVarietyToProduct", fields: [productId], references: [id])
+  productId         String
+  description       String                @db.VarChar(255)
+  pakageWeightGrams Decimal
+  packageType       String
+  images            ProductVarietyImage[] @relation("ProductImageToProductVariety")
+  inventory         Inventory?            @relation("InventoryToProductVariety")
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  createdBy         String
+  updatedBy         String
+}
+
+model ProductVarietyImage {
+  id               String         @id @default(cuid())
+  uri              String
+  productVariety   ProductVariety @relation(name: "ProductImageToProductVariety", fields: [productVarietyId], references: [id])
+  productVarietyId String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  createdBy        String
+  updatedBy        String
+}
+
+enum ProcessingMethodEnum {
+  TODO //   adicionar methodos de processamento
+}
+
+model ProductOrigin {
+  id String @id @default(cuid())
+}
+
+model Producer {
+  id            String         @id @default(cuid())
+  name          String         @db.VarChar(255)
+  socialReason  String
+  createdAt     String
+  updatedAt     String
+  productBrands ProductBrand[] @relation("ProducerToProductBrand")
+}
+
+model Supplier {
+  id        String      @id @default(cuid())
+  name      String      @db.VarChar()
+  email     String
+  phone1    String
+  phone2    String
+  inventory Inventory[] @relation("InventoryToSupplier")
+}
+
+model Inventory {
+  id             String              @id @default(cuid())
+  productVariety ProductVariety      @relation(name: "InventoryToProductVariety", fields: [productId], references: [id])
+  productId      String              @unique
+  supplier       Supplier            @relation(name: "InventoryToSupplier", fields: [supplierId], references: [id])
+  supplierId     String
+  sku            String              @db.VarChar(24)
+  quantity       Int                 @default(0)
+  price          Decimal
+  expirationDate DateTime
+  lastRestocked  DateTime
+  cretedAt       DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  status         InventoryStatusEnum
+  weightGrams    Decimal
+  createdBy      String
+  updatedBy      String
+}
+
+enum InventoryStatusEnum {
+  // Adicionar status de stock de produtos
+  TODO
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  orderItems OrderItem[] @relation("OrderItemToOrder")
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  order   Order  @relation(name: "OrderItemToOrder", fields: [orderId], references: [id])
+  orderId String
+}
