@@ -14,34 +14,108 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+//==================== Modelos de Banco de Dados (Tabelas e Enums)=========================================
+
+//Pais
 model Country {
-  id              String    @id @default(cuid(2))
+  id              String    @id @default(cuid())
+  name            String    @db.VarChar(64)
+  isoAlpha2       String    @db.VarChar(2)
+  isoAlpha3       String    @db.VarChar(3)
+  tld             String    @db.VarChar(64)
   productOriginal Product[] @relation("ProductToCountryOrigin")
 }
 
+//Departamento
+model Department {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  employees   Employee[]     @relation("EmployeeToDepartment")
+  roles       EmployeeRole[]
+}
+
+//Funcionarios
 model Employee {
-  id        String @id @default(cuid())
-  firstName String @db.VarChar(64)
-  lastName  String @db.VarChar(128)
+  id          String                 @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String                 @unique
+  phone1      String                 @unique
+  phone2      String?
+  position    String
+  departments Department[]           @relation("EmployeeToDepartment")
+  hireDate    DateTime               @default(now())
+  status      EmployeeUserStatusEnum @default(ACTIVE)
+  user        EmployeeUser?          @relation("EmployeeUserToEmployee")
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 
-  employeeProductCreator Product[] @relation("ProductToEmployee")
+  // relacionamentos de criação e atualizações
+  productCreated             Product[]             @relation("ProductToEmployeeCreator")
+  productUpdated             Product[]             @relation("ProductToEmployeeUpdater")
+  productVarietyCreated      ProductVariety[]      @relation("ProductVarietyToEmployeeCreator")
+  productVarietyUpdated      ProductVariety[]      @relation("ProductVarietyToEmployeeUpdater")
+  productVarietyImageCreated ProductVarietyImage[] @relation("ProductVarietyImageToEmployeeCreator")
+  productVarietyImageUpdater ProductVarietyImage[] @relation("ProductVarietyImageToEmployeeUpdater")
 }
 
+//Roles dos funcionarios
+model EmployeeRole {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  department   Department     @relation(fields: [departmentId], references: [id])
+  departmentId String
+  employees    EmployeeUser[] @relation("EmployeeUserToRoles")
+}
+
+//Conta do funcionario
 model EmployeeUser {
-  id        String                 @id @default(cuid())
-  userName  String                 @db.VarChar(16)
-  password  String                 @db.VarChar(128)
-  status    EmployeeUserStatusEnum @default(INACTIVE)
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  id         String                 @id @default(cuid())
+  employee   Employee               @relation(name: "EmployeeUserToEmployee", fields: [employeeId], references: [id])
+  employeeId String                 @unique
+  userName   String                 @db.VarChar(16)
+  password   String                 @db.VarChar(128)
+  status     EmployeeUserStatusEnum @default(INACTIVE)
+  roles      EmployeeRole[]         @relation("EmployeeUserToRoles")
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
 }
 
+//Status do funcionario
 enum EmployeeUserStatusEnum {
   ACTIVE
   INACTIVE
   BLOCKED
 }
 
+//Clientes
+model Customer {
+  id        String        @id @default(cuid())
+  firstName String        @db.VarChar(64)
+  lastName  String        @db.VarChar(64)
+  phone1    String
+  phone2    String?
+  address   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  orders    Order[]       @relation("OrderToCustomer")
+  cart      Cart?         @relation("CartToCustomer")
+  user      CustomerUser? @relation("CustomerUserToCustomer")
+}
+
+model CustomerUser {
+  id         String   @id @default(cuid())
+  customer   Customer @relation("CustomerUserToCustomer", fields: [customerId], references: [id])
+  customerId String   @unique
+  email      String   @unique
+  password   String   @db.VarChar(255)
+}
+
+//Categoria dos produtos
 model ProductCategory {
   id          String    @id @default(cuid())
   name        String    @db.VarChar(255)
@@ -53,63 +127,71 @@ model ProductCategory {
   Product     Product[] @relation("ProductToCategory")
 }
 
+//Marca dos produtos
 model ProductBrand {
-  id          String          @id @default(cuid())
-  name        String          @db.VarChar(64)
-  description String          @db.VarChar(255)
+  id          String      @id @default(cuid())
+  name        String      @db.VarChar(64)
+  description String      @db.VarChar(255)
   founderYear DateTime
-  logoUri     String          @db.VarChar(524)
-  website     String          @db.VarChar(255)
-  status      BrandStatusEnum @default(ACTIVE)
-  producer    Producer        @relation(name: "ProducerToProductBrand", fields: [producerId], references: [id])
+  logoUri     String      @db.VarChar(524)
+  website     String      @db.VarChar(255)
+  status      BrandStatus @default(ACTIVE)
+  producer    Producer    @relation(name: "ProducerToProductBrand", fields: [producerId], references: [id])
   producerId  String
-  Product     Product[]       @relation("ProductToProductBrand")
+  Product     Product[]   @relation("ProductToProductBrand")
 }
 
-enum BrandStatusEnum {
+//Status de marca
+enum BrandStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
 }
 
+//Produtos
 model Product {
-  id               String               @id @default(cuid())
-  name             String               @db.VarChar(255)
-  description      String               @db.VarChar(255)
-  productBrand     ProductBrand         @relation(name: "ProductToProductBrand", fields: [productBrandId], references: [id])
+  id               String                 @id @default(cuid())
+  name             String                 @db.VarChar(255)
+  description      String                 @db.VarChar(255)
+  productBrand     ProductBrand           @relation(name: "ProductToProductBrand", fields: [productBrandId], references: [id])
   brandId          String
-  sku              String               @db.VarChar(255)
-  category         ProductCategory      @relation(name: "ProductToCategory", fields: [categoryId], references: [id])
+  sku              String                 @db.VarChar(255)
+  category         ProductCategory        @relation(name: "ProductToCategory", fields: [categoryId], references: [id])
   categoryId       String
-  variety          ProductVariety[]     @relation("ProductVarietyToProduct")
-  processingMethod ProcessingMethodEnum
-  // harverstYear     DateTime inventario
+  variety          ProductVariety[]       @relation("ProductVarietyToProduct")
+  processingMethod CoffeeProcessingMethod
   batchNumber      String
-  countryOrigin    Country              @relation(name: "ProductToCountryOrigin", fields: [countryOriginId], references: [id])
+  countryOrigin    Country                @relation(name: "ProductToCountryOrigin", fields: [countryOriginId], references: [id])
   countryOriginId  String
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  employeeCreator  Employee             @relation(name: "ProductToEmployee", fields: [createdBy], references: [id])
-  createdBy        String
-  updatedBy        String
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
   productBrandId   String
+  cartItems        CartItem[]             @relation("CartItemToProduct")
+  creator          Employee               @relation(name: "ProductToEmployeeCreator", fields: [createdBy], references: [id])
+  createdBy        String
+  updater          Employee               @relation(name: "ProductToEmployeeUpdater", fields: [updatedBy], references: [id])
+  updatedBy        String
 }
 
+//Variantes dos produtos
 model ProductVariety {
-  id                String                @id @default(cuid())
-  product           Product               @relation(name: "ProductVarietyToProduct", fields: [productId], references: [id])
-  productId         String
-  description       String                @db.VarChar(255)
-  pakageWeightGrams Decimal
-  packageType       String
-  images            ProductVarietyImage[] @relation("ProductImageToProductVariety")
-  inventory         Inventory?            @relation("InventoryToProductVariety")
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  createdBy         String
-  updatedBy         String
+  id                 String                @id @default(cuid())
+  product            Product               @relation(name: "ProductVarietyToProduct", fields: [productId], references: [id])
+  productId          String
+  description        String                @db.VarChar(255)
+  packageWeightGrams Decimal
+  packageType        String
+  images             ProductVarietyImage[] @relation("ProductImageToProductVariety")
+  inventory          Inventory?            @relation("InventoryToProductVariety")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  creator            Employee              @relation(name: "ProductVarietyToEmployeeCreator", fields: [createdBy], references: [id])
+  createdBy          String
+  updater            Employee              @relation(name: "ProductVarietyToEmployeeUpdater", fields: [updatedBy], references: [id])
+  updatedBy          String
 }
 
+//Imagens dos variantes dos produtos 
 model ProductVarietyImage {
   id               String         @id @default(cuid())
   uri              String
@@ -117,18 +199,29 @@ model ProductVarietyImage {
   productVarietyId String
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  creator          Employee       @relation(name: "ProductVarietyImageToEmployeeCreator", fields: [createdBy], references: [id])
   createdBy        String
+  updater          Employee       @relation(name: "ProductVarietyImageToEmployeeUpdater", fields: [updatedBy], references: [id])
   updatedBy        String
 }
 
-enum ProcessingMethodEnum {
-  TODO //   adicionar methodos de processamento
+//metodo de processamento de café
+enum CoffeeProcessingMethod {
+  WASHED // Método úmido
+  NATURAL // Método natural ou seco
+  HONEY // Método honey ou mel
+  PULPED_NATURAL // Método despolpado natural
+  WET_HULLED // Método úmido parcial (comum na Indonésia)
+  ANAEROBIC // Fermentação anaeróbica
+  CARBONIC_MACERATION // Maceração carbônica
+  EXPERIMENTAL // Processos experimentais ou híbridos
 }
 
-model ProductOrigin {
-  id String @id @default(cuid())
-}
+// model ProductOrigin {
+//   id String @id @default(cuid())
+// }
 
+//Produtor
 model Producer {
   id            String         @id @default(cuid())
   name          String         @db.VarChar(255)
@@ -138,15 +231,17 @@ model Producer {
   productBrands ProductBrand[] @relation("ProducerToProductBrand")
 }
 
+//Fornecedor
 model Supplier {
   id        String      @id @default(cuid())
-  name      String      @db.VarChar()
+  name      String      @db.VarChar(255)
   email     String
   phone1    String
   phone2    String
   inventory Inventory[] @relation("InventoryToSupplier")
 }
 
+//Inventario de stock
 model Inventory {
   id             String              @id @default(cuid())
   productVariety ProductVariety      @relation(name: "InventoryToProductVariety", fields: [productId], references: [id])
@@ -158,26 +253,131 @@ model Inventory {
   price          Decimal
   expirationDate DateTime
   lastRestocked  DateTime
-  cretedAt       DateTime            @default(now())
+  createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
-  status         InventoryStatusEnum
+  status         InventoryStatusEnum @default(REGISTERED)
   weightGrams    Decimal
   createdBy      String
   updatedBy      String
 }
 
+//status de inventario de stock
 enum InventoryStatusEnum {
-  // Adicionar status de stock de produtos
-  TODO
+  ACTIVE //ativo
+  INACTIVE //inativo
+  LOW_STOCK //baixo stock
+  OUT_OF_STOCK //esgotado
+  COMING_SOON //Em breve
+  PAUSED //pausado
+  REGISTERED //registrado
 }
 
+//Carrinho de compra
+model Cart {
+  id         String     @id @default(cuid())
+  customer   Customer   @relation(name: "CartToCustomer", fields: [customerId], references: [id])
+  customerId String     @unique
+  items      CartItem[] @relation("CartItemToCart")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+//Items do carrinho de compra
+model CartItem {
+  id        String  @id @default(cuid()) @map("_id")
+  cart      Cart    @relation(name: "CartItemToCart", fields: [cartId], references: [id])
+  cartId    String
+  product   Product @relation(name: "CartItemToProduct", fields: [productId], references: [id])
+  productId String
+  quantity  Int     @default(1)
+  price     Decimal // preço unitário na época da adição
+}
+
+//Pedidos
 model Order {
-  id         String      @id @default(cuid())
-  orderItems OrderItem[] @relation("OrderItemToOrder")
+  id          String      @id @default(cuid())
+  customer    Customer    @relation(name: "OrderToCustomer", fields: [customerId], references: [id])
+  customerId  String
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[] @relation("OrderToOrderItem")
+  checkout    Checkout?   @relation("CheckoutToOrder")
 }
 
+//Items do pedido
 model OrderItem {
-  id      String @id @default(cuid())
-  order   Order  @relation(name: "OrderItemToOrder", fields: [orderId], references: [id])
-  orderId String
+  id         String  @id @default(cuid())
+  order      Order   @relation("OrderToOrderItem", fields: [orderId], references: [id])
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal
+  totalPrice Decimal
+}
+
+//Checkout de pagamento do pedido
+model Checkout {
+  id      String        @id @default(cuid())
+  order   Order         @relation(name: "CheckoutToOrder", fields: [orderId], references: [id])
+  orderId String        @unique
+  status  PaymentStatus
+  paidAt  DateTime?
+  method  PaymentMethod
+}
+
+//status do pedido
+enum OrderStatus {
+  PENDING //pendente
+  CONFIRMED //confirmado
+  SHIPPED //enviado
+  DELIVERED //entregue
+  CANCELLED //cancelado
+}
+
+//Status de pagamento do pedido
+enum PaymentStatus {
+  PENDING //Pendente
+  COMPLETED //Completado
+  FAILED //pagamento falhado
+}
+
+//Metodos de pagamento
+enum PaymentMethod {
+  CREDIT_CARD //cartão de crédito
+  DEBIT_CARD //cartão de débito
+  PAYPAL //paypal
+  PIX //pix 
+  BOLETO //boleto
+}
+
+model Email {
+  id        String      @id @default(cuid())
+  to        String // Destinatário
+  from      String // Remetente
+  subject   String // Assunto
+  body      String // Corpo do email (pode ser texto ou HTML)
+  type      EmailType // Tipo de email, usando enum
+  status    EmailStatus @default(PENDING) // Status do envio
+  sentAt    DateTime? // Data de envio
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum EmailType {
+  WELCOME // Email de boas-vindas
+  PASSWORD_RESET // Redefinição de senha
+  VERIFICATION // Verificação de conta
+  PROMOTION // Promoções e marketing
+  NEWSLETTER // Newsletter ou boletins informativos
+  TRANSACTIONAL // Confirmações e notificações transacionais
+  ALERT // Alertas de segurança ou sistema
+  FEEDBACK_REQUEST // Pedido de feedback ou avaliação
+}
+
+enum EmailStatus {
+  PENDING // Pendente de envio
+  SENT // Enviado com sucesso
+  FAILED // Falha no envio
 }
